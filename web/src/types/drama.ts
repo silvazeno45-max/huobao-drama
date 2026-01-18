@@ -79,6 +79,15 @@ export interface Storyboard {
   dialogue?: string
   action?: string
   atmosphere?: string
+  // 镜头相关字段（对应 Go Storyboard 结构）
+  shot_type?: string      // 景别
+  angle?: string          // 镜头角度
+  movement?: string       // 运镜
+  emotion?: string        // 情绪
+  result?: string         // 画面结果
+  bgm_prompt?: string     // 配乐提示词
+  sound_effect?: string   // 音效描述
+  // 提示词
   image_prompt?: string
   video_prompt?: string
   characters?: any
@@ -95,9 +104,11 @@ export interface Storyboard {
 export interface Scene {
   id: string
   drama_id: string
+  episode_id?: string
   location: string
   time: string
   prompt: string
+  atmosphere?: string
   description?: string
   title?: string
   storyboard_number?: number

@@ -1,6 +1,6 @@
 import { ref, computed, reactive } from 'vue'
 import { defineStore } from 'pinia'
-import { dramaAPI } from '@/api/drama'
+import { dramaService } from '@/services'
 import type { Episode, Character, Scene } from '@/types/drama'
 
 interface EpisodeCache {
@@ -74,15 +74,15 @@ export const useEpisodeStore = defineStore('episode', () => {
         
         switch (type) {
           case 'character':
-            await dramaAPI.saveCharacters(cache.data.drama_id, [data], episodeId)
+            await dramaService.saveCharacters(cache.data.drama_id, [data], episodeId)
             await fetchEpisode(episodeId, true)
             break
           case 'scene':
-            await dramaAPI.updateScene(data.id, data)
+            await dramaService.updateScene(data.id, data)
             await fetchEpisode(episodeId, true)
             break
           case 'storyboard':
-            await dramaAPI.updateStoryboard(data.id, data)
+            await dramaService.updateStoryboard(data.id, data)
             await fetchEpisode(episodeId, true)
             break
         }
@@ -94,7 +94,7 @@ export const useEpisodeStore = defineStore('episode', () => {
         switch (type) {
           case 'character':
             const characters = cache.data.characters?.filter(c => c.id !== id) || []
-            await dramaAPI.saveCharacters(cache.data.drama_id, characters, episodeId)
+            await dramaService.saveCharacters(cache.data.drama_id, characters, episodeId)
             await fetchEpisode(episodeId, true)
             break
           case 'scene':
@@ -109,7 +109,7 @@ export const useEpisodeStore = defineStore('episode', () => {
         const dramaId = parts[0]
         const episodeNumber = parseInt(parts.length > 1 ? parts[1] : cache.data.episode_number?.toString() || '1')
         
-        await dramaAPI.saveEpisodes(dramaId, [{
+        await dramaService.saveEpisodes(dramaId, [{
           episode_number: episodeNumber,
           script_content: content
         }])
@@ -118,7 +118,7 @@ export const useEpisodeStore = defineStore('episode', () => {
       },
 
       async extractData() {
-        await dramaAPI.extractBackgrounds(episodeId)
+        await dramaService.extractBackgrounds(episodeId)
         await fetchEpisode(episodeId, true)
       },
 
@@ -130,7 +130,7 @@ export const useEpisodeStore = defineStore('episode', () => {
             const character = cache.data.characters?.find(c => c.id === id)
             if (character) {
               promises.push(
-                dramaAPI.generateSceneImage({
+                dramaService.generateSceneImage({
                   scene_id: character.id.toString(),
                   prompt: character.appearance || character.description || character.name,
                   model: undefined
@@ -143,7 +143,7 @@ export const useEpisodeStore = defineStore('episode', () => {
         if (options?.sceneIds && options.sceneIds.length > 0) {
           options.sceneIds.forEach(sceneId => {
             promises.push(
-              dramaAPI.generateSceneImage({
+              dramaService.generateSceneImage({
                 scene_id: sceneId,
                 model: undefined
               })
@@ -159,7 +159,7 @@ export const useEpisodeStore = defineStore('episode', () => {
       },
       
       async generateStoryboards() {
-        await dramaAPI.generateStoryboard(episodeId)
+        await dramaService.generateStoryboard(episodeId)
         await fetchEpisode(episodeId, true)
       }
     }
@@ -195,7 +195,7 @@ export const useEpisodeStore = defineStore('episode', () => {
       const dramaId = parts[0]
       const episodeNumber = parts.length > 1 ? parseInt(parts[1]) : null
       
-      const drama = await dramaAPI.get(dramaId)
+      const drama = await dramaService.get(dramaId)
       
       let episode: Episode | undefined
       if (episodeNumber !== null) {

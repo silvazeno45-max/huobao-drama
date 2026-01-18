@@ -370,8 +370,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import { Loading, RefreshRight, MagicStick, UploadFilled } from '@element-plus/icons-vue';
-import { generationAPI } from '@/api/generation';
-import { dramaAPI } from '@/api/drama';
+import { generationService, dramaService } from '@/services';
 import type { OutlineResult, ParseScriptResult } from '@/types/generation';
 
 const route = useRoute();
@@ -546,7 +545,7 @@ const generateOutline = async () => {
   generating.value = true;
   
   try {
-    const result = await generationAPI.generateOutline({
+    const result = await generationService.generateOutline({
       drama_id: dramaId,
       theme: outlineForm.theme,
       genre: outlineForm.genre,
@@ -605,7 +604,7 @@ const generateCharacters = async () => {
 
   generating.value = true;
   try {
-    charactersResult.value = await generationAPI.generateCharacters({
+    charactersResult.value = await generationService.generateCharacters({
       drama_id: dramaId,
       outline: outlineResult.value.summary
     });
@@ -655,7 +654,7 @@ const generateEpisodes = async () => {
       });
     }
     
-    const result = await generationAPI.generateEpisodes({
+    const result = await generationService.generateEpisodes({
       drama_id: dramaId,
       outline: outlineText,
       episode_count: episodesForm.episode_count
@@ -677,7 +676,7 @@ const saveScript = async () => {
   saving.value = true;
   try {
     await saveCurrentStep();
-    await dramaAPI.saveProgress(dramaId, { current_step: 'script_completed' });
+    await dramaService.saveProgress(dramaId, { current_step: 'script_completed' });
     ElMessage.success('剧本保存成功，即将返回项目工作流');
     setTimeout(() => {
       router.push(`/dramas/${dramaId}`);
@@ -697,7 +696,7 @@ const parseScript = async () => {
 
   parsing.value = true;
   try {
-    parseResult.value = await generationAPI.parseScript({
+    parseResult.value = await generationService.parseScript({
       drama_id: dramaId,
       script_content: uploadForm.script_content,
       auto_split: uploadForm.auto_split
@@ -726,7 +725,7 @@ const saveUploadedScript = async () => {
         description: char.description,
         personality: char.personality
       }));
-      await dramaAPI.saveCharacters(dramaId, charactersToSave);
+      await dramaService.saveCharacters(dramaId, charactersToSave);
     }
 
     // 2. 转换解析结果为保存格式（不包含场景，场景由后续步骤生成）
@@ -740,10 +739,10 @@ const saveUploadedScript = async () => {
     }));
 
     // 3. 保存剧集和场景数据
-    await dramaAPI.saveEpisodes(dramaId, episodesToSave);
+    await dramaService.saveEpisodes(dramaId, episodesToSave);
     
     // 4. 更新进度
-    await dramaAPI.saveProgress(dramaId, { current_step: 'episodes' });
+    await dramaService.saveProgress(dramaId, { current_step: 'episodes' });
     
     ElMessage.success(`剧本保存成功：${parseResult.value.episodes.length}集，${parseResult.value.characters?.length || 0}个角色`);
     // 跳转回DramaWorkflow页面，步骤1（角色图片生成）
@@ -759,20 +758,20 @@ const saveCurrentStep = async () => {
   try {
     if (activeTab.value === 'ai') {
       if (aiCurrentStep.value === 0 && outlineResult.value) {
-        await dramaAPI.saveOutline(dramaId, {
+        await dramaService.saveOutline(dramaId, {
           title: outlineResult.value.title,
           summary: outlineResult.value.summary,
           genre: outlineResult.value.genre,
           tags: outlineResult.value.tags
         });
-        await dramaAPI.saveProgress(dramaId, { current_step: 'outline' });
+        await dramaService.saveProgress(dramaId, { current_step: 'outline' });
       } else if (aiCurrentStep.value === 1 && charactersResult.value.length > 0) {
-        await dramaAPI.saveCharacters(dramaId, charactersResult.value);
-        await dramaAPI.saveProgress(dramaId, { current_step: 'characters' });
+        await dramaService.saveCharacters(dramaId, charactersResult.value);
+        await dramaService.saveProgress(dramaId, { current_step: 'characters' });
       } else if (aiCurrentStep.value === 2 && episodesResult.value.length > 0) {
         // AI生成的剧集已在GenerateEpisodes接口中保存，不需要重复保存
         // 只更新进度状态
-        await dramaAPI.saveProgress(dramaId, { current_step: 'episodes' });
+        await dramaService.saveProgress(dramaId, { current_step: 'episodes' });
       }
     }
   } catch (error: any) {
@@ -866,7 +865,7 @@ const updateUrlState = () => {
 
 const loadDramaData = async () => {
   try {
-    const drama = await dramaAPI.get(dramaId);
+    const drama = await dramaService.get(dramaId);
     
     // 加载大纲数据
     const hasOutline = !!(drama.description || drama.title);

@@ -85,7 +85,12 @@ export const characterLibraryAPI = {
   },
 
   // 批量生成角色形象
-  batchGenerateCharacterImages(characterIds: string[], model?: string) {
+  batchGenerateCharacterImages(
+    characterIds: string[], 
+    model?: string,
+    // onProgress 仅在本地模式有效，远程 API 忽略此参数
+    _onProgress?: (characterId: string, success: boolean, current: number, total: number) => void
+  ) {
     return request.post<{ message: string; count: number }>('/characters/batch-generate-images', {
       character_ids: characterIds,
       model

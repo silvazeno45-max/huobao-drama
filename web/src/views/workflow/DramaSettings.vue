@@ -61,7 +61,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { dramaAPI } from '@/api/drama'
+import { dramaService } from '@/services'
 
 const route = useRoute()
 const router = useRouter()
@@ -81,7 +81,7 @@ const goBack = () => {
 
 const saveSettings = async () => {
   try {
-    await dramaAPI.update(dramaId, form)
+    await dramaService.update(dramaId, form)
     ElMessage.success('设置保存成功')
   } catch (error: any) {
     ElMessage.error(error.message || '保存失败')
@@ -100,7 +100,7 @@ const deleteProject = async () => {
       }
     )
     
-    await dramaAPI.delete(dramaId)
+    await dramaService.delete(dramaId)
     ElMessage.success('项目已删除')
     router.push('/dramas')
   } catch (error: any) {
@@ -112,7 +112,7 @@ const deleteProject = async () => {
 
 onMounted(async () => {
   try {
-    const drama = await dramaAPI.get(dramaId)
+    const drama = await dramaService.get(dramaId)
     Object.assign(form, drama)
   } catch (error: any) {
     ElMessage.error(error.message || '加载失败')

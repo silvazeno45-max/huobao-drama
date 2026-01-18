@@ -177,7 +177,7 @@ import {
   Delete,
   InfoFilled 
 } from '@element-plus/icons-vue'
-import { dramaAPI } from '@/api/drama'
+import { dramaService } from '@/services'
 import type { Drama, DramaListQuery } from '@/types/drama'
 import { PageHeader, ProjectCard, ThemeToggle, ActionButton, CreateDramaDialog, EmptyState, AIConfigDialog } from '@/components/common'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
@@ -200,7 +200,7 @@ const showAIConfig = ref(false)
 const loadDramas = async () => {
   loading.value = true
   try {
-    const res = await dramaAPI.list(queryParams.value)
+    const res = await dramaService.list(queryParams.value)
     dramas.value = res.items || []
     total.value = res.pagination?.total || 0
   } catch (error: any) {
@@ -228,7 +228,7 @@ const editDrama = async (id: string) => {
   editLoading.value = true
   editDialogVisible.value = true
   try {
-    const drama = await dramaAPI.get(id)
+    const drama = await dramaService.get(id)
     editForm.value = {
       id: drama.id,
       title: drama.title,
@@ -251,7 +251,7 @@ const saveEdit = async () => {
   
   editLoading.value = true
   try {
-    await dramaAPI.update(editForm.value.id, {
+    await dramaService.update(editForm.value.id, {
       title: editForm.value.title,
       description: editForm.value.description
     })
@@ -268,7 +268,7 @@ const saveEdit = async () => {
 // Delete drama / 删除短剧
 const deleteDrama = async (id: string) => {
   try {
-    await dramaAPI.delete(id)
+    await dramaService.delete(id)
     ElMessage.success('删除成功')
     loadDramas()
   } catch (error: any) {
@@ -288,19 +288,19 @@ onMounted(() => {
 .page-container {
   min-height: 100vh;
   background: var(--bg-primary);
-  padding: var(--space-2) var(--space-3);
+  /* padding: var(--space-2) var(--space-3); */
   transition: background var(--transition-normal);
 }
 
 @media (min-width: 768px) {
   .page-container {
-    padding: var(--space-3) var(--space-4);
+    /* padding: var(--space-3) var(--space-4); */
   }
 }
 
 @media (min-width: 1024px) {
   .page-container {
-    padding: var(--space-4) var(--space-5);
+    /* padding: var(--space-4) var(--space-5); */
   }
 }
 
@@ -342,7 +342,9 @@ onMounted(() => {
    Projects Grid / 项目网格 - 紧凑间距
    ======================================== */
 .projects-grid {
+  padding: 12px;
   display: flex;
+  flex-wrap: wrap;
   /* grid-template-columns: repeat(2, 1fr); */
   gap: var(--space-2);
   margin-bottom: var(--space-4);

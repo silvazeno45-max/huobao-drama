@@ -2,12 +2,18 @@
   <div class="page-container">
     <div class="content-wrapper animate-fade-in">
       <!-- Page Header / 页面头部 -->
-      <PageHeader
-        :title="drama?.title || ''"
-        :subtitle="drama?.description || $t('drama.management.overview')"
-        :show-back="true"
-        :back-text="$t('common.back')"
-      />
+      <AppHeader :fixed="false" :show-logo="false">
+        <template #left>
+          <el-button text @click="$router.back()" class="back-btn">
+            <el-icon><ArrowLeft /></el-icon>
+            <span>{{ $t('common.back') }}</span>
+          </el-button>
+          <div class="page-title">
+            <h1>{{ drama?.title || '' }}</h1>
+            <span class="subtitle">{{ drama?.description || $t('drama.management.overview') }}</span>
+          </div>
+        </template>
+      </AppHeader>
 
       <!-- Tabs / 标签页 -->
       <div class="tabs-wrapper">
@@ -248,9 +254,9 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Document, User, Picture, Plus } from '@element-plus/icons-vue'
-import { dramaAPI } from '@/api/drama'
+import { dramaService } from '@/services'
 import type { Drama } from '@/types/drama'
-import { PageHeader, StatCard, EmptyState } from '@/components/common'
+import { AppHeader, StatCard, EmptyState } from '@/components/common'
 
 const router = useRouter()
 const route = useRoute()
@@ -286,7 +292,7 @@ const sortedEpisodes = computed(() => {
 
 const loadDramaData = async () => {
   try {
-    const data = await dramaAPI.get(route.params.id as string)
+    const data = await dramaService.get(route.params.id as string)
     drama.value = data
     loadScenes()
   } catch (error: any) {
@@ -391,7 +397,7 @@ const deleteEpisode = async (episode: any) => {
       }))
 
     // 保存更新后的章节列表
-    await dramaAPI.saveEpisodes(drama.value!.id, updatedEpisodes)
+    await dramaService.saveEpisodes(drama.value!.id, updatedEpisodes)
     
     ElMessage.success(`第${episode.episode_number}章删除成功`)
     await loadDramaData()
@@ -432,7 +438,7 @@ const addCharacter = async () => {
       newCharacter.value
     ]
 
-    await dramaAPI.saveCharacters(drama.value!.id, allCharacters)
+    await dramaService.saveCharacters(drama.value!.id, allCharacters)
     ElMessage.success('角色添加成功')
     addCharacterDialogVisible.value = false
     await loadDramaData()
@@ -463,7 +469,7 @@ const deleteCharacter = async (character: any) => {
 
   try {
     const updatedCharacters = drama.value!.characters!.filter(c => c.id !== character.id)
-    await dramaAPI.saveCharacters(drama.value!.id, updatedCharacters.map(c => ({
+    await dramaService.saveCharacters(drama.value!.id, updatedCharacters.map(c => ({
       name: c.name,
       role: c.role,
       appearance: c.appearance,

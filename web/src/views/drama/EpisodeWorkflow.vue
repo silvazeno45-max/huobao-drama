@@ -1,39 +1,38 @@
 <template>
   <div class="page-container">
     <div class="content-wrapper animate-fade-in">
-      <header class="page-header">
-        <div class="header-content">
-          <div class="header-left">
-            <button class="back-btn" @click="$router.back()">
-              <el-icon><ArrowLeft /></el-icon>
-              <span>{{ $t('workflow.backToProject') }}</span>
-            </button>
-            <div class="nav-divider"></div>
-            <h1 class="header-title">{{ $t('workflow.episodeProduction', { number: episodeNumber }) }}</h1>
-          </div>
-          <div class="header-center">
-            <div class="custom-steps">
-              <div class="step-item" :class="{ active: currentStep >= 0, current: currentStep === 0 }">
-                <div class="step-circle">1</div>
-                <span class="step-text">{{ $t('workflow.steps.content') }}</span>
-              </div>
-              <el-icon class="step-arrow"><ArrowRight /></el-icon>
-              <div class="step-item" :class="{ active: currentStep >= 1, current: currentStep === 1 }">
-                <div class="step-circle">2</div>
-                <span class="step-text">{{ $t('workflow.steps.generateImages') }}</span>
-              </div>
-              <el-icon class="step-arrow"><ArrowRight /></el-icon>
-              <div class="step-item" :class="{ active: currentStep >= 2, current: currentStep === 2 }">
-                <div class="step-circle">3</div>
-                <span class="step-text">{{ $t('workflow.steps.splitStoryboard') }}</span>
-              </div>
+      <AppHeader :fixed="false" :show-logo="false">
+        <template #left>
+          <el-button text @click="$router.back()" class="back-btn">
+            <el-icon><ArrowLeft /></el-icon>
+            <span>{{ $t('workflow.backToProject') }}</span>
+          </el-button>
+          <h1 class="header-title">{{ $t('workflow.episodeProduction', { number: episodeNumber }) }}</h1>
+        </template>
+        <template #center>
+          <div class="custom-steps">
+            <div class="step-item" :class="{ active: currentStep >= 0, current: currentStep === 0 }">
+              <div class="step-circle">1</div>
+              <span class="step-text">{{ $t('workflow.steps.content') }}</span>
+            </div>
+            <el-icon class="step-arrow"><ArrowRight /></el-icon>
+            <div class="step-item" :class="{ active: currentStep >= 1, current: currentStep === 1 }">
+              <div class="step-circle">2</div>
+              <span class="step-text">{{ $t('workflow.steps.generateImages') }}</span>
+            </div>
+            <el-icon class="step-arrow"><ArrowRight /></el-icon>
+            <div class="step-item" :class="{ active: currentStep >= 2, current: currentStep === 2 }">
+              <div class="step-circle">3</div>
+              <span class="step-text">{{ $t('workflow.steps.splitStoryboard') }}</span>
             </div>
           </div>
-          <div class="header-right">
-            <el-button :icon="Setting" circle @click="showModelConfigDialog" :title="$t('workflow.modelConfig')" />
-          </div>
-        </div>
-      </header>
+        </template>
+        <template #right>
+          <el-button :icon="Setting" @click="showModelConfigDialog" :title="$t('workflow.modelConfig')">
+            图文配置
+          </el-button>
+        </template>
+      </AppHeader>
 
     <!-- 阶段 0: 章节内容 + 提取角色场景 -->
     <el-card v-show="currentStep === 0" shadow="never" class="stage-card stage-card-fullscreen">
@@ -815,14 +814,10 @@ import {
   Loading,
   WarningFilled
 } from '@element-plus/icons-vue'
-import { dramaAPI } from '@/api/drama'
-import { generationAPI } from '@/api/generation'
-import { characterLibraryAPI } from '@/api/character-library'
-import { aiAPI } from '@/api/ai'
+import { dramaService, generationService, characterLibraryService, aiService, imageService } from '@/services'
 import type { AIServiceConfig } from '@/types/ai'
-import { imageAPI } from '@/api/image'
 import type { Drama } from '@/types/drama'
-import PageHeader from '@/components/common/PageHeader.vue'
+import { AppHeader } from '@/components/common'
 
 const route = useRoute()
 const router = useRouter()
@@ -888,6 +883,7 @@ const hasScript = computed(() => {
 
 const currentEpisode = computed(() => {
   if (!drama.value?.episodes) return null
+  
   return drama.value.episodes.find(
     ep => ep.episode_number === episodeNumber
   )
@@ -933,8 +929,8 @@ const goBack = () => {
 const loadAIConfigs = async () => {
   try {
     const [textList, imageList] = await Promise.all([
-      aiAPI.list('text'),
-      aiAPI.list('image')
+      aiService.list('text'),
+      aiService.list('image')
     ])
     
     // 展开模型列表并去重（保留优先级最高的）
@@ -1036,7 +1032,7 @@ const loadSavedModelConfig = () => {
 
 const loadDramaData = async () => {
   try {
-    const data = await dramaAPI.get(dramaId)
+    const data = await dramaService.get(dramaId)
     drama.value = data
     
     if (!hasScript.value) {
@@ -1061,7 +1057,7 @@ const checkAndStartPolling = async () => {
     if (char.image_generation_status === 'pending' || char.image_generation_status === 'processing') {
       // 查找对应的image_generation记录
       try {
-        const imageGenList = await imageAPI.listImages({
+        const imageGenList = await imageService.listImages({
           drama_id: dramaId,
           status: char.image_generation_status as any
         })
@@ -1092,7 +1088,7 @@ const checkAndStartPolling = async () => {
     if (scene.image_generation_status === 'pending' || scene.image_generation_status === 'processing') {
       // 查找对应的image_generation记录
       try {
-        const imageGenList = await imageAPI.listImages({
+        const imageGenList = await imageService.listImages({
           drama_id: dramaId,
           status: scene.image_generation_status as any
         })
@@ -1146,7 +1142,7 @@ const saveChapterScript = async () => {
       updatedEpisodes = [...existingEpisodes, newEpisode]
     }
     
-    await dramaAPI.saveEpisodes(dramaId, updatedEpisodes)
+    await dramaService.saveEpisodes(dramaId, updatedEpisodes)
     ElMessage.success('章节保存成功！')
     await loadDramaData()
   } catch (error: any) {
@@ -1195,7 +1191,7 @@ const pollImageStatus = async (imageGenId: number, onComplete: () => Promise<voi
     try {
       await new Promise(resolve => setTimeout(resolve, pollInterval))
       
-      const imageGen = await imageAPI.getImage(imageGenId)
+      const imageGen = await imageService.getImage(imageGenId)
       
       if (imageGen.status === 'completed') {
         // 生成成功
@@ -1230,12 +1226,12 @@ const extractCharactersAndBackgrounds = async () => {
 
     // 并行创建异步任务
     const [characterTask, backgroundTask] = await Promise.all([
-      generationAPI.generateCharacters({
+      generationService.generateCharacters({
         drama_id: dramaId.toString(),
         outline: currentEpisode.value.script_content || '',
         count: 0
       }),
-      dramaAPI.extractBackgrounds(episodeId)
+      dramaService.extractBackgrounds(episodeId)
     ])
     
     ElMessage.success('任务已创建，正在后台处理...')
@@ -1280,7 +1276,7 @@ const pollExtractTask = async (taskId: string, type: 'character' | 'background')
     await new Promise(resolve => setTimeout(resolve, interval))
     
     try {
-      const task = await generationAPI.getTaskStatus(taskId)
+      const task = await generationService.getTaskStatus(taskId)
       
       if (task.status === 'completed') {
         // 任务完成
@@ -1288,7 +1284,7 @@ const pollExtractTask = async (taskId: string, type: 'character' | 'background')
           // 解析角色数据并保存
           const result = typeof task.result === 'string' ? JSON.parse(task.result) : task.result
           if (result.characters && result.characters.length > 0) {
-            await dramaAPI.saveCharacters(dramaId, result.characters, currentEpisode.value?.id)
+            await dramaService.saveCharacters(dramaId, result.characters, currentEpisode.value?.id)
           }
         }
         return
@@ -1313,7 +1309,7 @@ const generateCharacterImage = async (characterId: number) => {
   try {
     // 获取用户选择的图片生成模型
     const model = selectedImageModel.value || undefined
-    const response = await characterLibraryAPI.generateCharacterImage(characterId.toString(), model)
+    const response = await characterLibraryService.generateCharacterImage(characterId.toString(), model)
     const imageGenId = response.image_generation?.id
     
     if (imageGenId) {
@@ -1357,22 +1353,44 @@ const batchGenerateCharacterImages = async () => {
   }
   
   batchGeneratingCharacters.value = true
+  
+  // 设置所有选中角色的生成状态
+  selectedCharacterIds.value.forEach(id => {
+    generatingCharacterImages.value[id] = true
+  })
+  
   try {
     // 获取用户选择的图片生成模型
     const model = selectedImageModel.value || undefined
+    const total = selectedCharacterIds.value.length
     
-    // 使用批量生成API
-    await characterLibraryAPI.batchGenerateCharacterImages(
+    // 使用批量生成API，传入进度回调
+    await characterLibraryService.batchGenerateCharacterImages(
       selectedCharacterIds.value.map(id => id.toString()),
-      model
+      model,
+      async (characterId: string, success: boolean, current: number, totalCount: number) => {
+        // 清除该角色的生成状态
+        generatingCharacterImages.value[Number(characterId)] = false
+        // 每生成完一张图片就刷新数据
+        await loadDramaData()
+        if (success) {
+          ElMessage.success(`角色图片生成完成 (${current}/${totalCount})`)
+        }
+        // 全部完成后关闭 loading
+        if (current >= totalCount) {
+          batchGeneratingCharacters.value = false
+        }
+      }
     )
     
-    ElMessage.success($t('workflow.batchTaskSubmitted'))
-    await loadDramaData()
+    ElMessage.info(`正在生成 ${total} 张角色图片...`)
   } catch (error: any) {
     ElMessage.error(error.message || $t('workflow.batchGenerateFailed'))
-  } finally {
     batchGeneratingCharacters.value = false
+    // 出错时清除所有生成状态
+    selectedCharacterIds.value.forEach(id => {
+      generatingCharacterImages.value[id] = false
+    })
   }
 }
 
@@ -1382,8 +1400,8 @@ const generateSceneImage = async (sceneId: string) => {
   try {
     // 获取用户选择的图片生成模型
     const model = selectedImageModel.value || undefined
-    const response = await dramaAPI.generateSceneImage({ 
-      scene_id: parseInt(sceneId),
+    const response = await dramaService.generateSceneImage({ 
+      scene_id: sceneId,
       model
     })
     const imageGenId = response.image_generation?.id
@@ -1391,10 +1409,7 @@ const generateSceneImage = async (sceneId: string) => {
     if (imageGenId) {
       ElMessage.info($t('workflow.sceneImageGenerating'))
       // 轮询检查生成状态
-      await pollImageStatus(imageGenId, async () => {
-        await loadDramaData()
-        ElMessage.success($t('workflow.sceneImageComplete'))
-      })
+      await loadDramaData()
     } else {
       ElMessage.success($t('workflow.sceneImageStarted'))
       await loadDramaData()
@@ -1413,25 +1428,31 @@ const batchGenerateSceneImages = async () => {
   }
   
   batchGeneratingScenes.value = true
-  try {
-    const promises = selectedSceneIds.value.map(sceneId => 
-      generateSceneImage(sceneId.toString())
-    )
-    const results = await Promise.allSettled(promises)
-    
-    const successCount = results.filter(r => r.status === 'fulfilled').length
-    const failCount = results.filter(r => r.status === 'rejected').length
-    
-    if (failCount === 0) {
-      ElMessage.success($t('workflow.batchCompleteSuccess', { count: successCount }))
-    } else {
-      ElMessage.warning($t('workflow.batchCompletePartial', { success: successCount, fail: failCount }))
-    }
-  } catch (error: any) {
-    ElMessage.error(error.message || $t('workflow.batchGenerateFailed'))
-  } finally {
-    batchGeneratingScenes.value = false
-  }
+  const total = selectedSceneIds.value.length
+  let completed = 0
+  
+  ElMessage.info(`正在生成 ${total} 张场景图片...`)
+  
+  // 异步并发生成所有场景图片
+  selectedSceneIds.value.forEach(sceneId => {
+    generateSceneImage(sceneId.toString())
+      .then(async () => {
+        completed++
+        await loadDramaData()
+        ElMessage.success(`场景图片生成完成 (${completed}/${total})`)
+        if (completed >= total) {
+          batchGeneratingScenes.value = false
+        }
+      })
+      .catch(async (err) => {
+        completed++
+        await loadDramaData()
+        console.error('[Scene] Failed to generate scene image:', sceneId, err)
+        if (completed >= total) {
+          batchGeneratingScenes.value = false
+        }
+      })
+  })
 }
 
 const taskProgress = ref(0)
@@ -1439,6 +1460,7 @@ const taskMessage = ref('')
 let pollTimer: any = null
 
 const generateShots = async () => {
+  
   if (!currentEpisode.value?.id) {
     ElMessage.error('章节信息不存在')
     return
@@ -1451,7 +1473,7 @@ const generateShots = async () => {
   try {
     const episodeId = currentEpisode.value.id.toString()
     // 创建异步任务
-    const response = await generationAPI.generateStoryboard(episodeId)
+    const response = await generationService.generateStoryboard(episodeId)
     
     taskMessage.value = response.message || '任务已创建'
     
@@ -1467,12 +1489,13 @@ const generateShots = async () => {
 const pollTaskStatus = async (taskId: string) => {
   const checkStatus = async () => {
     try {
-      const task = await generationAPI.getTaskStatus(taskId)
+      const task = await generationService.getTaskStatus(taskId)
       
       taskProgress.value = task.progress
       taskMessage.value = task.message || `处理中... ${task.progress}%`
       
       if (task.status === 'completed') {
+        
         // 任务完成
         if (pollTimer) {
           clearInterval(pollTimer)
@@ -1543,7 +1566,7 @@ const saveShotEdit = async () => {
     savingShot.value = true
     
     // 调用API更新镜头
-    await dramaAPI.updateStoryboard(editingShot.value.id.toString(), editingShot.value)
+    await dramaService.updateStoryboard(editingShot.value.id.toString(), editingShot.value)
     
     // 更新本地数据
     if (currentEpisode.value?.storyboards) {
@@ -1570,13 +1593,13 @@ const openPromptDialog = (item: any, type: 'character' | 'scene') => {
 const savePrompt = async () => {
   try {
     if (currentEditType.value === 'character') {
-      await characterLibraryAPI.updateCharacter(currentEditItem.value.id, {
+      await characterLibraryService.updateCharacter(currentEditItem.value.id, {
         appearance: editPrompt.value
       })
       await generateCharacterImage(currentEditItem.value.id)
     } else {
-      await dramaAPI.generateSceneImage({ 
-        scene_id: parseInt(currentEditItem.value.id),
+      await dramaService.generateSceneImage({ 
+        scene_id: String(currentEditItem.value.id),
         prompt: editPrompt.value
       })
     }
@@ -1598,7 +1621,7 @@ const uploadSceneImage = (sceneId: string) => {
 
 const selectFromLibrary = async (characterId: number) => {
   try {
-    const result = await characterLibraryAPI.list({ page_size: 50 })
+    const result = await characterLibraryService.list({ page_size: 50 })
     libraryItems.value = result.items || []
     currentUploadTarget.value = characterId
     libraryDialogVisible.value = true
@@ -1624,7 +1647,7 @@ const addToCharacterLibrary = async (character: any) => {
       }
     )
     
-    await characterLibraryAPI.addCharacterToLibrary(character.id.toString())
+    await characterLibraryService.addCharacterToLibrary(character.id.toString())
     ElMessage.success($t('workflow.addedToLibrary'))
   } catch (error: any) {
     if (error !== 'cancel') {
@@ -1636,7 +1659,7 @@ const addToCharacterLibrary = async (character: any) => {
 const selectLibraryItem = async (item: any) => {
   try {
     if (currentUploadTarget.value?.type === 'character') {
-      await characterLibraryAPI.applyFromLibrary(
+      await characterLibraryService.applyFromLibrary(
         currentUploadTarget.value.id.toString(),
         item.id
       )
@@ -1658,7 +1681,7 @@ const handleUploadSuccess = async (response: any) => {
     }
 
     if (currentUploadTarget.value?.type === 'character') {
-      await characterLibraryAPI.uploadCharacterImage(
+      await characterLibraryService.uploadCharacterImage(
         currentUploadTarget.value.id.toString(),
         imageUrl
       )
@@ -1691,7 +1714,7 @@ const deleteCharacter = async (characterId: number) => {
       }
     )
 
-    await characterLibraryAPI.deleteCharacter(characterId)
+    await characterLibraryService.deleteCharacter(characterId)
     ElMessage.success('角色已删除')
     await loadDramaData()
   } catch (error: any) {

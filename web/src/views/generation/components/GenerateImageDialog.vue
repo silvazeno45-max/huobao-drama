@@ -65,7 +65,7 @@
 
       <el-form-item :label="$t('imageDialog.imageSize')">
         <el-select v-model="form.size" :placeholder="$t('imageDialog.selectSize')">
-          <el-option :label="`1024x1024 (${$t('imageDialog.square')})`" value="1024x1024" />
+          <el-option :label="`2048x2048 (${$t('imageDialog.square')})`" value="2048x2048" />
           <el-option :label="`1792x1024 (${$t('imageDialog.landscape')})`" value="1792x1024" />
           <el-option :label="`1024x1792 (${$t('imageDialog.portrait')})`" value="1024x1792" />
         </el-select>
@@ -116,8 +116,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { imageAPI } from '@/api/image'
-import { dramaAPI } from '@/api/drama'
+import { imageService, dramaService } from '@/services'
 import type { Drama, Scene } from '@/types/drama'
 import type { GenerateImageRequest } from '@/types/image'
 
@@ -150,7 +149,7 @@ const form = reactive<GenerateImageRequest>({
   prompt: '',
   negative_prompt: '',
   provider: 'openai',
-  size: '1024x1024',
+  size: '2048x2048',
   quality: 'standard',
   style: 'vivid',
   steps: 30,
@@ -195,7 +194,7 @@ watch(() => props.modelValue, (val) => {
 
 const loadDramas = async () => {
   try {
-    const result = await dramaAPI.list({ page: 1, page_size: 100 })
+    const result = await dramaService.list({ page: 1, page_size: 100 })
     dramas.value = result.items || []
   } catch (error: any) {
     console.error('Failed to load dramas:', error)
@@ -204,7 +203,7 @@ const loadDramas = async () => {
 
 const loadScenes = async (dramaId: string) => {
   try {
-    const drama = await dramaAPI.get(dramaId)
+    const drama = await dramaService.get(dramaId)
     const allScenes: Scene[] = []
     
     if (drama.episodes) {
@@ -275,7 +274,7 @@ const handleGenerate = async () => {
         if (form.seed && form.seed > 0) params.seed = form.seed
       }
 
-      await imageAPI.generateImage(params)
+      await imageService.generateImage(params)
       
       ElMessage.success(t('imageDialog.taskSubmitted'))
       emit('success')

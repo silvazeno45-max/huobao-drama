@@ -136,7 +136,7 @@ import {
   PictureFilled, Loading, CircleClose,
   Download, Refresh
 } from '@element-plus/icons-vue'
-import { imageAPI } from '@/api/image'
+import { imageService } from '@/services'
 import type { ImageGeneration, ImageStatus } from '@/types/image'
 
 interface Props {

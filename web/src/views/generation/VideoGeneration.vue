@@ -170,8 +170,7 @@ import {
   VideoPlay, VideoCamera, Loading, CircleClose,
   View, Download, Delete
 } from '@element-plus/icons-vue'
-import { videoAPI } from '@/api/video'
-import { dramaAPI } from '@/api/drama'
+import { videoService, dramaService } from '@/services'
 import type { VideoGeneration, VideoStatus } from '@/types/video'
 import type { Drama } from '@/types/drama'
 import GenerateVideoDialog from './components/GenerateVideoDialog.vue'
@@ -202,7 +201,7 @@ const pagination = reactive({
 const loadVideos = async () => {
   loading.value = true
   try {
-    const result = await videoAPI.listVideos({
+    const result = await videoService.listVideos({
       drama_id: filters.drama_id,
       status: filters.status,
       page: pagination.page,
@@ -219,7 +218,7 @@ const loadVideos = async () => {
 
 const loadDramas = async () => {
   try {
-    const result = await dramaAPI.list({ page: 1, page_size: 100 })
+    const result = await dramaService.list({ page: 1, page_size: 100 })
     dramas.value = result.items
   } catch (error: any) {
     console.error('Failed to load dramas:', error)
@@ -245,7 +244,7 @@ const downloadVideo = (video: VideoGeneration) => {
 
 const deleteVideo = async (id: number) => {
   try {
-    await videoAPI.deleteVideo(id)
+    await videoService.deleteVideo(id)
     ElMessage.success('删除成功')
     loadVideos()
   } catch (error: any) {

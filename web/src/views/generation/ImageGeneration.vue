@@ -167,8 +167,7 @@ import {
   Plus, Picture, PictureFilled, Loading, CircleClose,
   View, Download, Delete
 } from '@element-plus/icons-vue'
-import { imageAPI } from '@/api/image'
-import { dramaAPI } from '@/api/drama'
+import { imageService, dramaService } from '@/services'
 import type { ImageGeneration, ImageStatus } from '@/types/image'
 import type { Drama } from '@/types/drama'
 import GenerateImageDialog from './components/GenerateImageDialog.vue'
@@ -198,7 +197,7 @@ const pagination = reactive({
 const loadImages = async () => {
   loading.value = true
   try {
-    const result = await imageAPI.listImages({
+    const result = await imageService.listImages({
       drama_id: filters.drama_id,
       status: filters.status,
       page: pagination.page,
@@ -215,7 +214,7 @@ const loadImages = async () => {
 
 const loadDramas = async () => {
   try {
-    const result = await dramaAPI.list({ page: 1, page_size: 100 })
+    const result = await dramaService.list({ page: 1, page_size: 100 })
     dramas.value = result.items
   } catch (error: any) {
     console.error('Failed to load dramas:', error)
@@ -241,7 +240,7 @@ const downloadImage = (image: ImageGeneration) => {
 
 const deleteImage = async (id: number) => {
   try {
-    await imageAPI.deleteImage(id)
+    await imageService.deleteImage(id)
     ElMessage.success('删除成功')
     loadImages()
   } catch (error: any) {

@@ -135,9 +135,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { videoAPI } from '@/api/video'
-import { imageAPI } from '@/api/image'
-import { dramaAPI } from '@/api/drama'
+import { videoService, imageService, dramaService } from '@/services'
 import type { Drama } from '@/types/drama'
 import type { ImageGeneration } from '@/types/image'
 import type { GenerateVideoRequest } from '@/types/video'
@@ -212,7 +210,7 @@ watch(() => props.modelValue, (val) => {
 
 const loadDramas = async () => {
   try {
-    const result = await dramaAPI.list({ page: 1, page_size: 100 })
+    const result = await dramaService.list({ page: 1, page_size: 100 })
     dramas.value = result.items
   } catch (error: any) {
     console.error('Failed to load dramas:', error)
@@ -221,7 +219,7 @@ const loadDramas = async () => {
 
 const loadImages = async (dramaId: string) => {
   try {
-    const result = await imageAPI.listImages({
+    const result = await imageService.listImages({
       drama_id: dramaId,
       status: 'completed',
       page: 1,
@@ -284,7 +282,7 @@ const handleGenerate = async () => {
     try {
       if (form.image_gen_id) {
         console.log('Generating from image:', form.image_gen_id)
-        await videoAPI.generateFromImage(form.image_gen_id)
+        await videoService.generateFromImage(form.image_gen_id)
       } else {
         const params: GenerateVideoRequest = {
           drama_id: form.drama_id,
@@ -309,7 +307,7 @@ const handleGenerate = async () => {
         if (form.seed && form.seed > 0) params.seed = form.seed
 
         console.log('Generating video with params:', params)
-        await videoAPI.generateVideo(params)
+        await videoService.generateVideo(params)
       }
       
       ElMessage.success('视频生成任务已提交，请稍后查看结果')

@@ -92,7 +92,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { MagicStick } from '@element-plus/icons-vue'
-import { generationAPI } from '@/api/generation'
+import { generationService } from '@/services'
 import type { Character } from '@/types/drama'
 
 const route = useRoute()

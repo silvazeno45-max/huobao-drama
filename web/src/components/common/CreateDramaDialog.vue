@@ -65,7 +65,7 @@ import { ref, reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { dramaAPI } from '@/api/drama'
+import { dramaService } from '@/services'
 import type { CreateDramaRequest } from '@/types/drama'
 
 /**
@@ -128,7 +128,7 @@ const handleSubmit = async () => {
     if (valid) {
       loading.value = true
       try {
-        const drama = await dramaAPI.create(form)
+        const drama = await dramaService.create(form)
         ElMessage.success('创建成功')
         visible.value = false
         emit('created', drama.id)

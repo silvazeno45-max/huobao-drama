@@ -164,7 +164,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Plus, ArrowLeft } from '@element-plus/icons-vue'
-import { aiAPI } from '@/api/ai'
+import { aiService } from '@/services'
 import { PageHeader } from '@/components/common'
 import type { AIServiceConfig, AIServiceType, CreateAIConfigRequest, UpdateAIConfigRequest } from '@/types/ai'
 import ConfigList from './components/ConfigList.vue'
@@ -363,7 +363,7 @@ const rules: FormRules = {
 const loadConfigs = async () => {
   loading.value = true
   try {
-    configs.value = await aiAPI.list(activeTab.value)
+    configs.value = await aiService.list(activeTab.value)
   } catch (error: any) {
     ElMessage.error(error.message || '加载失败')
   } finally {
@@ -432,7 +432,7 @@ const handleDelete = async (config: AIServiceConfig) => {
       type: 'warning'
     })
     
-    await aiAPI.delete(config.id)
+    await aiService.delete(config.id)
     ElMessage.success('删除成功')
     loadConfigs()
   } catch (error: any) {
@@ -445,7 +445,7 @@ const handleDelete = async (config: AIServiceConfig) => {
 const handleToggleActive = async (config: AIServiceConfig) => {
   try {
     const newActiveState = !config.is_active
-    await aiAPI.update(config.id, { is_active: newActiveState })
+    await aiService.update(config.id, { is_active: newActiveState })
     ElMessage.success(newActiveState ? '已启用配置' : '已禁用配置')
     await loadConfigs()
   } catch (error: any) {
@@ -461,7 +461,7 @@ const testConnection = async () => {
   
   testing.value = true
   try {
-    await aiAPI.testConnection({
+    await aiService.testConnection({
       base_url: form.base_url,
       api_key: form.api_key,
       model: form.model,
@@ -478,7 +478,7 @@ const testConnection = async () => {
 const handleTest = async (config: AIServiceConfig) => {
   testing.value = true
   try {
-    await aiAPI.testConnection({
+    await aiService.testConnection({
       base_url: config.base_url,
       api_key: config.api_key,
       model: config.model,
@@ -510,10 +510,10 @@ const handleSubmit = async () => {
           priority: form.priority,
           is_active: form.is_active
         }
-        await aiAPI.update(editingId.value, updateData)
+        await aiService.update(editingId.value, updateData)
         ElMessage.success('更新成功')
       } else {
-        await aiAPI.create(form)
+        await aiService.create(form)
         ElMessage.success('创建成功')
       }
       

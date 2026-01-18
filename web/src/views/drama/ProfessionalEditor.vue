@@ -1,22 +1,15 @@
 <template>
   <div class="professional-editor">
     <!-- 顶部工具栏 -->
-    <div class="editor-toolbar">
-      <div class="toolbar-left">
-        <el-button link @click="goBack" class="back-btn">
-          <el-icon>
-            <ArrowLeft />
-          </el-icon>
-          {{ $t('editor.backToEpisode') }}
+    <AppHeader :fixed="false" :show-logo="false" @config-updated="loadVideoModels">
+      <template #left>
+        <el-button text @click="goBack" class="back-btn">
+          <el-icon><ArrowLeft /></el-icon>
+          <span>{{ $t('editor.backToEpisode') }}</span>
         </el-button>
-        <el-divider direction="vertical" />
         <span class="episode-title">{{ drama?.title }} - {{ $t('editor.episode', { number: episodeNumber }) }}</span>
-      </div>
-
-      <div class="toolbar-right">
-        <!-- <el-button :icon="Setting" circle @click="showSettings = true" /> -->
-      </div>
-    </div>
+      </template>
+    </AppHeader>
 
     <!-- 主编辑区域 -->
     <div class="editor-main">
@@ -60,7 +53,7 @@
           <el-tab-pane :label="$t('storyboard.shotProperties')" name="shot" v-if="currentStoryboard">
             <div v-if="currentStoryboard" class="shot-editor-new">
               <!-- 场景(Scene) -->
-              <div class="scene-section">
+              <div class="scene-section" v-loading="loadingScenes" element-loading-text="加载场景中...">
                 <div class="section-label">
                   {{ $t('storyboard.scene') }} (Scene)
                   <el-button size="small" text @click="showSceneSelector = true">{{ $t('storyboard.selectScene')
@@ -83,7 +76,7 @@
               </div>
 
               <!-- 登场角色(Cast) -->
-              <div class="cast-section">
+              <div class="cast-section" v-loading="loadingCharacters" element-loading-text="加载角色中...">
                 <div class="section-label">
                   {{ $t('editor.cast') }} (Cast)
                   <el-button size="small" text :icon="Plus" @click="showCharacterSelector = true">{{
@@ -662,6 +655,11 @@
           <!-- 音效与配乐标签 -->
           <el-tab-pane :label="$t('video.soundAndMusicTab')" name="audio">
             <div class="tab-content">
+              <el-alert type="warning" :closable="false" show-icon style="margin-bottom: 16px;">
+                <template #title>
+                  <span>{{ $t('video.soundMusicInDev') }}</span>
+                </template>
+              </el-alert>
               <el-empty :description="$t('video.soundMusicInDev')" />
             </div>
           </el-tab-pane>
@@ -669,6 +667,11 @@
           <!-- 视频合成列表标签 -->
           <el-tab-pane :label="$t('video.videoMerge')" name="merges">
             <div class="tab-content">
+              <el-alert type="warning" :closable="false" show-icon style="margin-bottom: 16px;">
+                <template #title>
+                  <span>{{ $t('video.videoMergeInDev') }}</span>
+                </template>
+              </el-alert>
               <div class="merges-list" v-loading="loadingMerges">
                 <el-empty v-if="videoMerges.length === 0" :description="$t('video.noMergeRecords')" :image-size="120">
                   <template #description>
@@ -892,13 +895,8 @@ import {
   Upload, MagicStick, VideoCamera, ZoomIn, ZoomOut, Top, Bottom, Check, Close, Right,
   Timer, Calendar, Clock, Loading, WarningFilled, Delete
 } from '@element-plus/icons-vue'
-import { dramaAPI } from '@/api/drama'
-import { generateFramePrompt, type FrameType } from '@/api/frame'
-import { imageAPI } from '@/api/image'
-import { videoAPI } from '@/api/video'
-import { aiAPI } from '@/api/ai'
-import { assetAPI } from '@/api/asset'
-import { videoMergeAPI } from '@/api/videoMerge'
+import { dramaService, imageService, videoService, aiService, assetService, videoMergeService, frameService } from '@/services'
+import type { FrameType } from '@/api/frame'
 import type { ImageGeneration } from '@/types/image'
 import type { VideoGeneration } from '@/types/video'
 import type { AIServiceConfig } from '@/types/ai'
@@ -906,12 +904,13 @@ import type { Asset } from '@/types/asset'
 import type { VideoMerge } from '@/api/videoMerge'
 import VideoTimelineEditor from '@/components/editor/VideoTimelineEditor.vue'
 import type { Drama, Episode, Storyboard } from '@/types/drama'
+import { AppHeader } from '@/components/common'
 
 const route = useRoute()
 const router = useRouter()
 const { t: $t } = useI18n()
 
-const dramaId = Number(route.params.dramaId)
+const dramaId = route.params.dramaId
 const episodeNumber = Number(route.params.episodeNumber)
 const episodeId = ref<number>(0)
 
@@ -920,6 +919,8 @@ const episode = ref<Episode | null>(null)
 const storyboards = ref<Storyboard[]>([])
 const characters = ref<any[]>([])
 const availableScenes = ref<any[]>([])
+const loadingCharacters = ref(false)
+const loadingScenes = ref(false)
 
 const currentStoryboardId = ref<number | null>(null)
 const activeTab = ref('shot')
@@ -1118,7 +1119,7 @@ const extractProviderFromModel = (modelName: string): string => {
 // 加载视频AI配置
 const loadVideoModels = async () => {
   try {
-    const configs = await aiAPI.list('video')
+    const configs = await aiService.list('video')
 
     // 只显示启用的配置
     const activeConfigs = configs.filter(c => c.is_active)
@@ -1166,7 +1167,7 @@ const loadVideoModels = async () => {
 // 加载视频素材库
 const loadVideoAssets = async () => {
   try {
-    const result = await assetAPI.listAssets({
+    const result = await assetService.listAssets({
       drama_id: dramaId.toString(),
       episode_id: episodeId.value,
       type: 'video',
@@ -1407,7 +1408,7 @@ const saveStoryboardField = async (fieldName: string) => {
     const updateData: any = {}
     updateData[fieldName] = currentStoryboard.value[fieldName]
 
-    await dramaAPI.updateStoryboard(currentStoryboard.value.id.toString(), updateData)
+    await dramaService.updateStoryboard(currentStoryboard.value.id.toString(), updateData)
   } catch (error: any) {
     ElMessage.error('保存失败: ' + (error.message || '未知错误'))
   }
@@ -1427,7 +1428,7 @@ const extractFramePrompt = async () => {
       params.panel_count = panelCount.value
     }
 
-    const result = await generateFramePrompt(currentStoryboard.value.id, params)
+    const result = await frameService.generateFramePrompt(currentStoryboard.value.id, params)
 
     // 根据记录的帧类型提取prompt，确保更新到正确的位置
     let extractedPrompt = ''
@@ -1480,7 +1481,7 @@ const loadStoryboardImages = async (storyboardId: number, frameType?: string) =>
     if (frameType) {
       params.frame_type = frameType
     }
-    const result = await imageAPI.listImages(params)
+    const result = await imageService.listImages(params)
     generatedImages.value = result.items || []
 
     // 如果有进行中的任务，启动轮询
@@ -1526,7 +1527,7 @@ const startPolling = () => {
       if (pollingFrameType) {
         params.frame_type = pollingFrameType
       }
-      const result = await imageAPI.listImages(params)
+      const result = await imageService.listImages(params)
 
       // 再次检查帧类型是否仍然匹配，避免竞态条件
       if (selectedFrameType.value === pollingFrameType) {
@@ -1583,7 +1584,7 @@ const generateFrameImage = async () => {
       })
     }
 
-    const result = await imageAPI.generateImage({
+    const result = await imageService.generateImage({
       drama_id: dramaId.toString(),
       prompt: currentFramePrompt.value,
       storyboard_id: currentStoryboard.value.id,
@@ -1647,7 +1648,7 @@ const addVideoToAssets = async (video: VideoGeneration) => {
         isReplacing = true
         // 自动替换：先删除旧素材
         try {
-          await assetAPI.deleteAsset(existingAsset.id)
+          await assetService.deleteAsset(existingAsset.id)
         } catch (error) {
           console.error('删除旧素材失败:', error)
         }
@@ -1655,7 +1656,7 @@ const addVideoToAssets = async (video: VideoGeneration) => {
     }
 
     // 添加新素材
-    await assetAPI.importFromVideo(video.id)
+    await assetService.importFromVideo(video.id)
     ElMessage.success('已添加到素材库')
 
     // 重新加载素材库列表
@@ -1910,7 +1911,7 @@ const generateVideo = async () => {
         break
     }
 
-    const result = await videoAPI.generateVideo(requestParams)
+    const result = await videoService.generateVideo(requestParams)
 
     generatedVideos.value.unshift(result)
     ElMessage.success('视频生成任务已提交')
@@ -1927,7 +1928,7 @@ const generateVideo = async () => {
 // 加载分镜的视频参考图片（所有帧类型）
 const loadVideoReferenceImages = async (storyboardId: number) => {
   try {
-    const result = await imageAPI.listImages({
+    const result = await imageService.listImages({
       storyboard_id: storyboardId,
       page: 1,
       page_size: 100
@@ -1942,7 +1943,7 @@ const loadVideoReferenceImages = async (storyboardId: number) => {
 const loadStoryboardVideos = async (storyboardId: number) => {
   loadingVideos.value = true
   try {
-    const result = await videoAPI.listVideos({
+    const result = await videoService.listVideos({
       storyboard_id: storyboardId.toString(),
       page: 1,
       page_size: 50
@@ -1974,7 +1975,7 @@ const startVideoPolling = () => {
     }
 
     try {
-      const result = await videoAPI.listVideos({
+      const result = await videoService.listVideos({
         storyboard_id: currentStoryboard.value.id.toString(),
         page: 1,
         page_size: 50
@@ -2032,7 +2033,7 @@ const toggleCharacterInShot = async (charId: number) => {
       typeof c === 'object' ? c.id : c
     )
 
-    await dramaAPI.updateStoryboard(currentStoryboard.value.id.toString(), {
+    await dramaService.updateStoryboard(currentStoryboard.value.id.toString(), {
       character_ids: characterIds
     })
 
@@ -2079,7 +2080,7 @@ const removeCharacterFromShot = async (charId: number) => {
       typeof c === 'object' ? c.id : c
     )
 
-    await dramaAPI.updateStoryboard(currentStoryboard.value.id.toString(), {
+    await dramaService.updateStoryboard(currentStoryboard.value.id.toString(), {
       character_ids: characterIds
     })
 
@@ -2094,7 +2095,7 @@ const removeCharacterFromShot = async (charId: number) => {
 const loadData = async () => {
   try {
     // 加载剧集信息
-    const dramaRes = await dramaAPI.get(dramaId.toString())
+    const dramaRes = await dramaService.get(dramaId.toString())
     drama.value = dramaRes
 
     // 找到当前章节
@@ -2109,7 +2110,7 @@ const loadData = async () => {
     episodeId.value = ep.id
 
     // 加载分镜列表
-    const storyboardsRes = await dramaAPI.getStoryboards(ep.id.toString())
+    const storyboardsRes = await dramaService.getStoryboards(ep.id.toString())
 
     // API返回格式: {storyboards: [...], total: number}
     storyboards.value = storyboardsRes?.storyboards || []
@@ -2120,10 +2121,14 @@ const loadData = async () => {
     }
 
     // 加载角色列表
+    loadingCharacters.value = true
     characters.value = dramaRes.characters || []
+    loadingCharacters.value = false
 
     // 加载可用场景列表
+    loadingScenes.value = true
     availableScenes.value = dramaRes.scenes || []
+    loadingScenes.value = false
 
     // 加载视频素材库
     await loadVideoAssets()
@@ -2138,7 +2143,7 @@ const selectScene = async (sceneId: number) => {
 
   try {
     // TODO: 调用API更新分镜的scene_id
-    await dramaAPI.updateScene(currentStoryboard.value.id.toString(), {
+    await dramaService.updateScene(currentStoryboard.value.id.toString(), {
       scene_id: sceneId
     })
 
@@ -2212,7 +2217,7 @@ const loadVideoMerges = async () => {
 
   try {
     loadingMerges.value = true
-    const result = await videoMergeAPI.listMerges({
+    const result = await videoMergeService.listMerges({
       episode_id: episodeId.value.toString(),
       page: 1,
       page_size: 20
@@ -2248,7 +2253,7 @@ const startMergePolling = () => {
     }
 
     try {
-      const result = await videoMergeAPI.listMerges({
+      const result = await videoMergeService.listMerges({
         episode_id: episodeId.value.toString(),
         page: 1,
         page_size: 20
@@ -2341,7 +2346,7 @@ const deleteMerge = async (mergeId: number) => {
       }
     )
 
-    await videoMergeAPI.deleteMerge(mergeId)
+    await videoMergeService.deleteMerge(mergeId)
     ElMessage.success('删除成功')
     // 刷新列表
     await loadVideoMerges()
@@ -2376,6 +2381,7 @@ const formatDateTime = (dateStr: string) => {
 }
 
 onMounted(async () => {
+  
   await loadData()
   await loadVideoModels()
   await loadVideoMerges()

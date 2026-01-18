@@ -1,37 +1,34 @@
 <template>
   <div class="workflow-container">
-    <div class="workflow-header">
-      <div class="header-single-line">
-        <div class="header-left-section">
-          <el-button text @click="goBack" class="back-btn">
-            <el-icon><ArrowLeft /></el-icon>
-            <span>{{ $t('dramaWorkflow.returnToList') }}</span>
-          </el-button>
-          <h2 class="drama-title">{{ drama?.title }}</h2>
-          <el-tag :type="getStatusType(drama?.status)" size="small">{{ getStatusText(drama?.status) }}</el-tag>
-        </div>
-        
+    <AppHeader :fixed="false" :show-logo="false">
+      <template #left>
+        <el-button text @click="goBack" class="back-btn">
+          <el-icon><ArrowLeft /></el-icon>
+          <span>{{ $t('dramaWorkflow.returnToList') }}</span>
+        </el-button>
+        <h2 class="drama-title">{{ drama?.title }}</h2>
+        <el-tag :type="getStatusType(drama?.status)" size="small">{{ getStatusText(drama?.status) }}</el-tag>
+      </template>
+      <template #center>
         <!-- 步骤进度条 -->
-        <div class="steps-inline">
-          <div class="custom-steps">
-            <div class="step-item" :class="{ active: currentStep >= 0, current: currentStep === 0 }">
-              <div class="step-circle">1</div>
-              <span class="step-text">{{ $t('dramaWorkflow.episodeScript', { number: currentEpisodeNumber }) }}</span>
-            </div>
-            <el-icon class="step-arrow"><ArrowRight /></el-icon>
-            <div class="step-item" :class="{ active: currentStep >= 1, current: currentStep === 1 }">
-              <div class="step-circle">2</div>
-              <span class="step-text">{{ $t('dramaWorkflow.storyboardBreakdown') }}</span>
-            </div>
-            <el-icon class="step-arrow"><ArrowRight /></el-icon>
-            <div class="step-item" :class="{ active: currentStep >= 2, current: currentStep === 2 }">
-              <div class="step-circle">3</div>
-              <span class="step-text">{{ $t('dramaWorkflow.characterImages') }}</span>
-            </div>
+        <div class="custom-steps">
+          <div class="step-item" :class="{ active: currentStep >= 0, current: currentStep === 0 }">
+            <div class="step-circle">1</div>
+            <span class="step-text">{{ $t('dramaWorkflow.episodeScript', { number: currentEpisodeNumber }) }}</span>
+          </div>
+          <el-icon class="step-arrow"><ArrowRight /></el-icon>
+          <div class="step-item" :class="{ active: currentStep >= 1, current: currentStep === 1 }">
+            <div class="step-circle">2</div>
+            <span class="step-text">{{ $t('dramaWorkflow.storyboardBreakdown') }}</span>
+          </div>
+          <el-icon class="step-arrow"><ArrowRight /></el-icon>
+          <div class="step-item" :class="{ active: currentStep >= 2, current: currentStep === 2 }">
+            <div class="step-circle">3</div>
+            <span class="step-text">{{ $t('dramaWorkflow.characterImages') }}</span>
           </div>
         </div>
-      </div>
-    </div>
+      </template>
+    </AppHeader>
 
     <!-- 当前阶段内容区域 -->
     <div class="stage-area">
@@ -254,7 +251,15 @@
                   />
                   <div class="character-preview">
                     <img v-if="character.image_url" :src="fixImageUrl(character.image_url)" :alt="character.name" />
-                    <el-avatar v-else :size="120">{{ character.name[0] }}</el-avatar>
+                    <div v-else-if="generatingCharacterIds.includes(character.id) || character.image_generation_status === 'processing'" class="generating-placeholder">
+                      <el-icon class="generating-icon" :size="48" color="#e6a23c"><Loading /></el-icon>
+                      <span class="generating-text">生成中...</span>
+                      <el-tag type="warning" size="small">处理中</el-tag>
+                    </div>
+                    <div v-else class="empty-placeholder">
+                      <el-avatar :size="120">{{ character.name[0] }}</el-avatar>
+                      <span class="empty-text">未生成</span>
+                    </div>
                   </div>
                   
                   <div class="character-info">
@@ -560,13 +565,13 @@ import {
   WarningFilled,
   InfoFilled,
   Check,
-  Delete
+  Delete,
+  Loading
 } from '@element-plus/icons-vue'
-import { dramaAPI } from '@/api/drama'
-import { generationAPI } from '@/api/generation'
-import { characterLibraryAPI } from '@/api/character-library'
+import { dramaService, generationService, characterLibraryService } from '@/services'
 import request from '@/utils/request'
 import type { Drama, DramaStatus } from '@/types/drama'
+import { AppHeader } from '@/components/common'
 
 const route = useRoute()
 const router = useRouter()
@@ -848,7 +853,7 @@ const saveChapterScript = async () => {
       ]
     }
     
-    await dramaAPI.saveEpisodes(drama.value!.id, episodesToSave)
+    await dramaService.saveEpisodes(drama.value!.id, episodesToSave)
     
     ElMessage.success(`第${currentEpisodeNumber.value}章保存成功`)
     await loadDramaData()
@@ -871,7 +876,7 @@ const saveCharacterDescription = async () => {
   
   saving.value = true
   try {
-    await characterLibraryAPI.updateCharacter(editingCharacter.value.id, {
+    await characterLibraryService.updateCharacter(editingCharacter.value.id, {
       appearance: editingCharacter.value.appearance,
       personality: editingCharacter.value.personality,
       description: editingCharacter.value.description
@@ -931,7 +936,8 @@ const generateShots = async () => {
     ElMessage.info('AI正在拆分镜头...')
     
     // 调用分镜拆分API
-    const result = await generationAPI.generateShots({
+    
+    const result = await generationService.generateShots({
       episode_id: currentEpisode.value.id,
       script_content: currentEpisode.value.script_content
     })
@@ -979,7 +985,7 @@ const parseShotsToCharacters = async () => {
     // 从所有镜头内容中提取角色
     const shotsContent = currentEpisode.value.shots.map((s: any) => s.content).join('\n')
     
-    const parseResult = await generationAPI.parseScript({
+    const parseResult = await generationService.parseScript({
       drama_id: drama.value!.id,
       script_content: shotsContent,
       auto_split: false
@@ -1005,7 +1011,7 @@ const parseShotsToCharacters = async () => {
           })),
           ...newCharacters
         ]
-        await dramaAPI.saveCharacters(drama.value!.id, allCharacters)
+        await dramaService.saveCharacters(drama.value!.id, allCharacters)
         ElMessage.success(`成功解析 ${newCharacters.length} 个新角色`)
       } else {
         ElMessage.info('未发现新角色')
@@ -1067,7 +1073,7 @@ const addCharacter = async () => {
       }
     ]
     
-    await dramaAPI.saveCharacters(drama.value!.id, allCharacters)
+    await dramaService.saveCharacters(drama.value!.id, allCharacters)
     
     ElMessage.success('角色添加成功')
     addCharacterDialogVisible.value = false
@@ -1110,7 +1116,7 @@ const deleteCharacter = async (character: any) => {
         description: c.description
       }))
     
-    await dramaAPI.saveCharacters(drama.value!.id, remainingCharacters)
+    await dramaService.saveCharacters(drama.value!.id, remainingCharacters)
     
     ElMessage.success('角色已删除')
     await loadDramaData()
@@ -1128,7 +1134,7 @@ const generateCharacterImage = async (character: any) => {
   
   generatingCharacterIds.value.push(character.id)
   try {
-    const res = await characterLibraryAPI.generateCharacterImage(character.id)
+    const res = await characterLibraryService.generateCharacterImage(character.id)
     ElMessage.success(`${character.name}的形象生成成功`)
     await loadDramaData()
   } catch (error: any) {
@@ -1154,9 +1160,8 @@ const batchGenerateCharacterImages = async () => {
 
   batchGenerating.value = true
   generatingCharacterIds.value = [...selectedCharacterIds.value]
-  
   try {
-    await characterLibraryAPI.batchGenerateCharacterImages(
+    await characterLibraryService.batchGenerateCharacterImages(
       selectedCharacterIds.value.map(id => String(id))
     )
     
@@ -1272,7 +1277,7 @@ const openUploadDialog = (character: any) => {
 const openCharacterLibrary = async (character: any) => {
   selectedCharacter.value = character
   try {
-    const res = await characterLibraryAPI.list({ page: 1, page_size: 100 })
+    const res = await characterLibraryService.list({ page: 1, page_size: 100 })
     characterLibrary.value = res.items || []
   } catch (error: any) {
     ElMessage.error(error.message || '加载角色库失败')
@@ -1283,7 +1288,7 @@ const openCharacterLibrary = async (character: any) => {
 
 const selectFromLibrary = async (libraryItem: any) => {
   try {
-    await characterLibraryAPI.applyFromLibrary(selectedCharacter.value.id, libraryItem.id)
+    await characterLibraryService.applyFromLibrary(selectedCharacter.value.id, libraryItem.id)
     ElMessage.success('已应用角色库形象')
     libraryDialogVisible.value = false
     await loadDramaData()
@@ -1294,7 +1299,7 @@ const selectFromLibrary = async (libraryItem: any) => {
 
 const addToCharacterLibrary = async (character: any) => {
   try {
-    await characterLibraryAPI.addCharacterToLibrary(character.id)
+    await characterLibraryService.addCharacterToLibrary(character.id)
     ElMessage.success(`${character.name}已添加到角色库`)
   } catch (error: any) {
     ElMessage.error(error.message || '添加失败')
@@ -1312,7 +1317,7 @@ const goToEpisodeDetail = (episodeId: string) => {
 const loadDramaData = async () => {
   const dramaId = route.params.id as string
   try {
-    drama.value = await dramaAPI.get(dramaId)
+    drama.value = await dramaService.get(dramaId)
   } catch (error: any) {
     ElMessage.error(error.message || '获取剧本信息失败')
     router.push('/dramas')
@@ -1726,6 +1731,45 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.generating-placeholder,
+.empty-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  gap: 8px;
+}
+
+.generating-placeholder {
+  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+}
+
+.generating-icon {
+  animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.generating-text {
+  color: #e6a23c;
+  font-size: 12px;
+}
+
+.empty-placeholder {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.empty-text {
+  color: #909399;
+  font-size: 12px;
+  margin-top: 8px;
 }
 
 .character-info {

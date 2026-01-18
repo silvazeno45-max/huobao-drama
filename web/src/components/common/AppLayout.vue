@@ -3,11 +3,21 @@
     <!-- Global Header -->
     <header class="app-header">
       <div class="header-content">
+        <!-- Left section: Logo + Left slot -->
         <div class="header-left">
           <router-link to="/" class="logo">
             <span class="logo-text">🎬 AI Drama</span>
           </router-link>
+          <!-- Left slot for business content | 左侧插槽用于业务内容 -->
+          <slot name="left" />
         </div>
+
+        <!-- Center section: Center slot -->
+        <div class="header-center">
+          <slot name="center" />
+        </div>
+
+        <!-- Right section: Actions + Right slot -->
         <div class="header-right">
           <LanguageSwitcher />
           <ThemeToggle />
@@ -15,7 +25,8 @@
             <el-icon><Setting /></el-icon>
             <span class="btn-text">{{ $t('drama.aiConfig') }}</span>
           </el-button>
-          <!-- <el-button :icon="Setting" circle @click="showAIConfig = true" :title="$t('aiConfig.title')" /> -->
+          <!-- Right slot for business content (before actions) | 右侧插槽（在操作按钮前） -->
+          <slot name="right" />
         </div>
       </div>
     </header>
@@ -84,6 +95,15 @@ const showAIConfig = ref(false)
   display: flex;
   align-items: center;
   gap: var(--space-4);
+  flex-shrink: 0;
+}
+
+.header-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
 }
 
 .logo {
@@ -112,6 +132,11 @@ const showAIConfig = ref(false)
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.header-btn .btn-text {
+  margin-left: 4px;
 }
 
 .app-main {
@@ -121,5 +146,20 @@ const showAIConfig = ref(false)
 /* Dark mode adjustments */
 .dark .app-header {
   background: rgba(26, 33, 41, 0.95);
+}
+
+/* Responsive | 响应式 */
+@media (max-width: 768px) {
+  .header-content {
+    padding: 0 var(--space-3);
+  }
+  
+  .btn-text {
+    display: none;
+  }
+  
+  .header-btn {
+    padding: 8px;
+  }
 }
 </style>

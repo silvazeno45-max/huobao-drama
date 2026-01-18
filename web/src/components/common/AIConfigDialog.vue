@@ -121,6 +121,12 @@
         :rules="rules"
         label-width="100px"
       >
+        <el-form-item label="服务类型">
+          <el-tag :type="form.service_type === 'text' ? 'primary' : form.service_type === 'image' ? 'success' : 'warning'">
+            {{ $t('aiConfig.tabs.' + form.service_type) }}
+          </el-tag>
+        </el-form-item>
+
         <el-form-item :label="$t('aiConfig.form.name')" prop="name">
           <el-input v-model="form.name" :placeholder="$t('aiConfig.form.namePlaceholder')" />
         </el-form-item>
@@ -185,6 +191,16 @@
           </div>
         </el-form-item>
 
+        <el-form-item :label="$t('aiConfig.form.endpoint')" prop="endpoint">
+          <el-input v-model="form.endpoint" :placeholder="$t('aiConfig.form.endpointPlaceholder')" />
+          <div class="form-tip">{{ $t('aiConfig.form.endpointTip') }}</div>
+        </el-form-item>
+
+        <el-form-item v-if="form.service_type === 'video'" :label="$t('aiConfig.form.queryEndpoint')" prop="query_endpoint">
+          <el-input v-model="form.query_endpoint" :placeholder="$t('aiConfig.form.queryEndpointPlaceholder')" />
+          <div class="form-tip">{{ $t('aiConfig.form.queryEndpointTip') }}</div>
+        </el-form-item>
+
         <el-form-item :label="$t('aiConfig.form.apiKey')" prop="api_key">
           <el-input 
             v-model="form.api_key" 
@@ -226,7 +242,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Plus, MagicStick } from '@element-plus/icons-vue'
-import { aiAPI } from '@/api/ai'
+import { aiService } from '@/services'
 import type { AIServiceConfig, AIServiceType, CreateAIConfigRequest, UpdateAIConfigRequest } from '@/types/ai'
 import ConfigList from '@/views/settings/components/ConfigList.vue'
 
@@ -263,6 +279,8 @@ const form = reactive<CreateAIConfigRequest & { is_active?: boolean, provider?: 
   base_url: '',
   api_key: '',
   model: [],
+  endpoint: '',
+  query_endpoint: '',
   priority: 0,
   is_active: true
 })
@@ -415,7 +433,7 @@ const rules: FormRules = {
 const loadConfigs = async () => {
   loading.value = true
   try {
-    configs.value = await aiAPI.list(activeTab.value)
+    configs.value = await aiService.list(activeTab.value)
   } catch (error: any) {
     ElMessage.error(error.message || '加载失败')
   } finally {
@@ -466,6 +484,8 @@ const handleEdit = (config: AIServiceConfig) => {
     base_url: config.base_url,
     api_key: config.api_key,
     model: Array.isArray(config.model) ? config.model : [config.model],
+    endpoint: config.endpoint || '',
+    query_endpoint: config.query_endpoint || '',
     priority: config.priority || 0,
     is_active: config.is_active
   })
@@ -480,7 +500,7 @@ const handleDelete = async (config: AIServiceConfig) => {
       type: 'warning'
     })
     
-    await aiAPI.delete(config.id)
+    await aiService.delete(config.id)
     ElMessage.success('删除成功')
     loadConfigs()
   } catch (error: any) {
@@ -493,7 +513,7 @@ const handleDelete = async (config: AIServiceConfig) => {
 const handleToggleActive = async (config: AIServiceConfig) => {
   try {
     const newActiveState = !config.is_active
-    await aiAPI.update(config.id, { is_active: newActiveState })
+    await aiService.update(config.id, { is_active: newActiveState })
     ElMessage.success(newActiveState ? '已启用配置' : '已禁用配置')
     await loadConfigs()
   } catch (error: any) {
@@ -509,7 +529,7 @@ const testConnection = async () => {
   
   testing.value = true
   try {
-    await aiAPI.testConnection({
+    await aiService.testConnection({
       base_url: form.base_url,
       api_key: form.api_key,
       model: form.model,
@@ -526,7 +546,7 @@ const testConnection = async () => {
 const handleTest = async (config: AIServiceConfig) => {
   testing.value = true
   try {
-    await aiAPI.testConnection({
+    await aiService.testConnection({
       base_url: config.base_url,
       api_key: config.api_key,
       model: config.model,
@@ -555,13 +575,15 @@ const handleSubmit = async () => {
           base_url: form.base_url,
           api_key: form.api_key,
           model: form.model,
+          endpoint: form.endpoint,
+          query_endpoint: form.query_endpoint,
           priority: form.priority,
           is_active: form.is_active
         }
-        await aiAPI.update(editingId.value, updateData)
+        await aiService.update(editingId.value, updateData)
         ElMessage.success('更新成功')
       } else {
-        await aiAPI.create(form)
+        await aiService.create(form)
         ElMessage.success('创建成功')
       }
       
@@ -580,6 +602,61 @@ const handleTabChange = (tabName: string | number) => {
   loadConfigs()
 }
 
+// 根据 provider 和 service_type 自动设置 endpoint（与后端 ai_service.go 逻辑一致）
+const updateEndpoints = (provider: string, serviceType: string) => {
+  let endpoint = ''
+  let queryEndpoint = ''
+
+  switch (provider) {
+    case 'gemini':
+    case 'google':
+      if (serviceType === 'text') {
+        endpoint = '/v1beta/models/{model}:generateContent'
+      } else if (serviceType === 'image') {
+        endpoint = '/v1beta/models/{model}:generateContent'
+      }
+      break
+    case 'openai':
+      if (serviceType === 'text') {
+        endpoint = '/chat/completions'
+      } else if (serviceType === 'image') {
+        endpoint = '/images/generations'
+      } else if (serviceType === 'video') {
+        endpoint = '/videos'
+        queryEndpoint = '/videos/{taskId}'
+      }
+      break
+    case 'chatfire':
+      if (serviceType === 'text') {
+        endpoint = '/chat/completions'
+      } else if (serviceType === 'image') {
+        endpoint = '/images/generations'
+      } else if (serviceType === 'video') {
+        endpoint = '/video/generations'
+        queryEndpoint = '/video/task/{taskId}'
+      }
+      break
+    case 'doubao':
+    case 'volcengine':
+    case 'volces':
+      if (serviceType === 'video') {
+        endpoint = '/contents/generations/tasks'
+        queryEndpoint = '/generations/tasks/{taskId}'
+      }
+      break
+    default:
+      // 默认使用 OpenAI 格式
+      if (serviceType === 'text') {
+        endpoint = '/chat/completions'
+      } else if (serviceType === 'image') {
+        endpoint = '/images/generations'
+      }
+  }
+
+  form.endpoint = endpoint
+  form.query_endpoint = queryEndpoint
+}
+
 const handleProviderChange = () => {
   form.model = []
   
@@ -588,6 +665,9 @@ const handleProviderChange = () => {
   } else {
     form.base_url = 'https://api.chatfire.site/v1'
   }
+  
+  // 更新 endpoint
+  updateEndpoints(form.provider || '', form.service_type)
   
   if (!isEdit.value) {
     form.name = generateConfigName(form.provider, form.service_type)
@@ -603,6 +683,8 @@ const resetForm = () => {
     base_url: '',
     api_key: '',
     model: [],
+    endpoint: '',
+    query_endpoint: '',
     priority: 0,
     is_active: true
   })
@@ -625,43 +707,79 @@ const handleQuickSetup = async () => {
   const apiKey = quickSetupApiKey.value.trim()
 
   try {
-    // 创建文本配置
-    const textProvider = providerConfigs.text.find(p => p.id === 'chatfire')!
-    await aiAPI.create({
-      service_type: 'text',
-      provider: 'chatfire',
-      name: generateConfigName('chatfire', 'text'),
-      base_url: baseUrl,
-      api_key: apiKey,
-      model: [textProvider.models[0]],
-      priority: 0
-    })
+    // 加载所有类型的配置，检查是否已存在相同 baseUrl 的配置
+    const [textConfigs, imageConfigs, videoConfigs] = await Promise.all([
+      aiService.list('text'),
+      aiService.list('image'),
+      aiService.list('video')
+    ])
 
-    // 创建图片配置
-    const imageProvider = providerConfigs.image.find(p => p.id === 'chatfire')!
-    await aiAPI.create({
-      service_type: 'image',
-      provider: 'chatfire',
-      name: generateConfigName('chatfire', 'image'),
-      base_url: baseUrl,
-      api_key: apiKey,
-      model: [imageProvider.models[0]],
-      priority: 0
-    })
+    const createdServices: string[] = []
+    const skippedServices: string[] = []
 
-    // 创建视频配置
-    const videoProvider = providerConfigs.video.find(p => p.id === 'chatfire')!
-    await aiAPI.create({
-      service_type: 'video',
-      provider: 'chatfire',
-      name: generateConfigName('chatfire', 'video'),
-      base_url: baseUrl,
-      api_key: apiKey,
-      model: [videoProvider.models[0]],
-      priority: 0
-    })
+    // 创建文本配置（如果不存在）
+    const existingTextConfig = textConfigs.find(c => c.base_url === baseUrl)
+    if (!existingTextConfig) {
+      const textProvider = providerConfigs.text.find(p => p.id === 'chatfire')!
+      await aiService.create({
+        service_type: 'text',
+        provider: 'chatfire',
+        name: generateConfigName('chatfire', 'text'),
+        base_url: baseUrl,
+        api_key: apiKey,
+        model: [textProvider.models[0]],
+        priority: 0
+      })
+      createdServices.push('文本')
+    } else {
+      skippedServices.push('文本')
+    }
 
-    ElMessage.success('一键配置成功！已创建文本、图片、视频三个服务配置')
+    // 创建图片配置（如果不存在）
+    const existingImageConfig = imageConfigs.find(c => c.base_url === baseUrl)
+    if (!existingImageConfig) {
+      const imageProvider = providerConfigs.image.find(p => p.id === 'chatfire')!
+      await aiService.create({
+        service_type: 'image',
+        provider: 'chatfire',
+        name: generateConfigName('chatfire', 'image'),
+        base_url: baseUrl,
+        api_key: apiKey,
+        model: [imageProvider.models[0]],
+        priority: 0
+      })
+      createdServices.push('图片')
+    } else {
+      skippedServices.push('图片')
+    }
+
+    // 创建视频配置（如果不存在）
+    const existingVideoConfig = videoConfigs.find(c => c.base_url === baseUrl)
+    if (!existingVideoConfig) {
+      const videoProvider = providerConfigs.video.find(p => p.id === 'chatfire')!
+      await aiService.create({
+        service_type: 'video',
+        provider: 'chatfire',
+        name: generateConfigName('chatfire', 'video'),
+        base_url: baseUrl,
+        api_key: apiKey,
+        model: [videoProvider.models[0]],
+        priority: 0
+      })
+      createdServices.push('视频')
+    } else {
+      skippedServices.push('视频')
+    }
+
+    // 显示结果消息
+    if (createdServices.length > 0 && skippedServices.length > 0) {
+      ElMessage.success(`已创建 ${createdServices.join('、')} 配置，${skippedServices.join('、')} 配置已存在`)
+    } else if (createdServices.length > 0) {
+      ElMessage.success(`一键配置成功！已创建 ${createdServices.join('、')} 服务配置`)
+    } else {
+      ElMessage.info('所有配置已存在，无需重复创建')
+    }
+
     quickSetupVisible.value = false
     loadConfigs()
   } catch (error: any) {

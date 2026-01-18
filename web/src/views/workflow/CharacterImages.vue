@@ -73,8 +73,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Edit, Picture } from '@element-plus/icons-vue'
-import { dramaAPI } from '@/api/drama'
-import { characterLibraryAPI } from '@/api/character-library'
+import { dramaService, characterLibraryService } from '@/services'
 import type { Character } from '@/types/drama'
 
 const route = useRoute()
@@ -135,7 +134,7 @@ const generateImage = async (character: Character) => {
   
   generatingIds.value.push(character.id)
   try {
-    const result = await characterLibraryAPI.generateCharacterImage(character.id as string)
+    const result = await characterLibraryService.generateCharacterImage(character.id as string)
     
     // 更新角色图片
     const index = characters.value.findIndex(c => c.id === character.id)
@@ -169,7 +168,7 @@ const batchGenerate = async () => {
   generatingIds.value = [...selectedCharacters.value]
   
   try {
-    await characterLibraryAPI.batchGenerateCharacterImages(
+    await characterLibraryService.batchGenerateCharacterImages(
       selectedCharacters.value.map(id => String(id))
     )
     
@@ -191,7 +190,7 @@ const startPolling = () => {
   
   pollingTimer = window.setInterval(async () => {
     try {
-      const drama = await dramaAPI.get(dramaId)
+      const drama = await dramaService.get(dramaId)
       if (drama.characters) {
         // 更新角色列表
         characters.value = drama.characters
@@ -230,7 +229,7 @@ const goToNextStep = () => {
 
 onMounted(async () => {
   try {
-    const drama = await dramaAPI.get(dramaId)
+    const drama = await dramaService.get(dramaId)
     if (drama.characters && drama.characters.length > 0) {
       characters.value = drama.characters
     } else {

@@ -7,8 +7,14 @@ export interface VideoGeneration {
   provider: string
   prompt: string
   model?: string
+  
+  // 参考图模式：single(单图), first_last(首尾帧), multiple(多图), none(无)
+  reference_mode?: string
   image_url?: string
   first_frame_url?: string
+  last_frame_url?: string
+  reference_image_urls?: string[]  // 多图参考模式
+  
   duration?: number
   fps?: number
   resolution?: string
@@ -17,8 +23,11 @@ export interface VideoGeneration {
   motion_level?: number
   camera_motion?: string
   seed?: number
+  
   video_url?: string
+  minio_url?: string
   local_path?: string
+  
   status: VideoStatus
   task_id?: string
   error_msg?: string

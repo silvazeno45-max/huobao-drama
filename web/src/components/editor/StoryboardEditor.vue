@@ -397,8 +397,7 @@ import {
   User,
   ArrowLeft
 } from '@element-plus/icons-vue'
-import { dramaAPI } from '@/api/drama'
-import { videoAPI } from '@/api/video'
+import { dramaService, videoService } from '@/services'
 import { useRouter } from 'vue-router'
 
 interface Storyboard {
@@ -585,7 +584,7 @@ const handleGenerateBackground = async () => {
         ? parseInt(currentShot.value.background_id) 
         : currentShot.value.background_id
       
-      await dramaAPI.generateSingleBackground(
+      await dramaService.generateSingleBackground(
         bgId, 
         props.dramaId,
         backgroundPrompt.value
@@ -632,7 +631,7 @@ const handleGenerateVideo = async () => {
     generating.value = true
     ElMessage.info('正在生成视频...')
     
-    await videoAPI.generateVideo({
+    await videoService.generateVideo({
       scene_id: parseInt(currentShot.value.id),
       prompt: currentShot.value.action
     })
@@ -727,7 +726,7 @@ const loadBackgrounds = async () => {
   if (!props.episodeId) return
   
   try {
-    const result = await dramaAPI.getBackgrounds(props.episodeId)
+    const result = await dramaService.getBackgrounds(props.episodeId)
     backgroundsCache.value = result.data || result || []
     // 加载完背景数据后，重新加载当前背景描述
     loadBackgroundPrompt()
@@ -745,7 +744,7 @@ onMounted(async () => {
   // 加载角色数据
   if (props.dramaId) {
     try {
-      const result = await dramaAPI.getCharacters(props.dramaId)
+      const result = await dramaService.getCharacters(props.dramaId)
       availableCharacters.value = result.data || result || []
       // 加载完角色后，自动选择当前镜头相关的角色
       autoSelectCharacters()

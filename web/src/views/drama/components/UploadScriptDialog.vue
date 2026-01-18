@@ -93,7 +93,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
-import { generationAPI } from '@/api/generation'
+import { generationService } from '@/services'
 import type { ParseScriptResult } from '@/types/generation'
 
 interface Props {
@@ -135,7 +135,7 @@ const handleParse = async () => {
 
   parsing.value = true
   try {
-    parseResult.value = await generationAPI.parseScript({
+    parseResult.value = await generationService.parseScript({
       drama_id: props.dramaId,
       script_content: form.script_content,
       auto_split: form.auto_split

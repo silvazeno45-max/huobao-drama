@@ -164,7 +164,7 @@
 import { ref, computed, reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { generationAPI } from '@/api/generation'
+import { generationService } from '@/services'
 import type { OutlineResult } from '@/types/generation'
 import type { Character, Episode } from '@/types/drama'
 
@@ -258,7 +258,7 @@ const generateOutline = async () => {
 
   generating.value = true
   try {
-    const result = await generationAPI.generateOutline({
+    const result = await generationService.generateOutline({
       drama_id: props.dramaId,
       theme: outlineForm.theme,
       genre: outlineForm.genre,
@@ -284,7 +284,7 @@ const generateCharacters = async () => {
       ? JSON.stringify(outlineResult.value)
       : ''
 
-    const result = await generationAPI.generateCharacters({
+    const result = await generationService.generateCharacters({
       drama_id: props.dramaId,
       outline,
       count: charactersForm.count,
@@ -308,7 +308,7 @@ const generateEpisodes = async () => {
       ? JSON.stringify(outlineResult.value)
       : ''
 
-    const result = await generationAPI.generateEpisodes({
+    const result = await generationService.generateEpisodes({
       drama_id: props.dramaId,
       outline,
       episode_count: episodesForm.episode_count,
