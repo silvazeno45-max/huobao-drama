@@ -1,9 +1,26 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  // Arquivos que Tailwind deve escanear para gerar as classes usadas
   content: [
     "./index.html",
     "./src/**/*.{vue,js,ts,jsx,tsx}",
+    // Inclusões extras caso haja código fora de src (opcional)
+    "./components/**/*.{vue,js,ts}",
+    "./public/**/*.html",
   ],
+
+  // Evita remoção de classes usadas dinamicamente
+  safelist: [
+    // exemplos de classes fixas que devem ser preservadas
+    "text-red-500",
+    "text-green-500",
+    // padrão regex: qualquer classe que comece com bg- ou text- (ajuste conforme necessário)
+    /^bg-/,
+    /^text-/,
+    /^from-/,
+    /^to-/,
+  ],
+
   darkMode: 'class',
   theme: {
     extend: {
